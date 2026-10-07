@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	mapPath := flag.String("carte", "", "fichier .map de la partie")
+	mapPath := flag.String("carte", "", "fichier .game de la partie")
 	player := flag.Int("joueur", 0, "numéro du joueur (1 ou 2)")
 	flag.Parse()
 
