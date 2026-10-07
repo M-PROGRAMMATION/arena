@@ -1,0 +1,3 @@
+02_symbole_inconnu.map ligne 8 colonne 5 : symbole inconnu "?"
+05_bordure_ouverte.map ligne 8 colonne 1 : la bordure doit être un mur
+07_depart_double.map ligne 8 colonne 4 : départ du joueur 1 déjà défini
