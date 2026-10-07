@@ -16,6 +16,8 @@
 /.idea/*
 .idea/
 
+.DS_Store
+
 # Code coverage profiles and other test artifacts
 *.out
 coverage.*
