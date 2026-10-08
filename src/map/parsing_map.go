@@ -1,4 +1,4 @@
-package game
+package _map
 
 import (
 	"fmt"
@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"unicode/utf8"
 )
 
 var validCharacters = []string{
@@ -28,7 +29,13 @@ func ParsingMap(nameCard string) []string {
 		fmt.Fprintln(os.Stderr, "Carte introuvable :", err)
 		os.Exit(1)
 	}
+
 	contenu := string(data) // []byte → string
+	if contenu == "" {
+		fmt.Fprintln(os.Stderr, "Carte invalide car vide:", nameCard)
+		os.Exit(1)
+	}
+
 	lignes := strings.Split(contenu, "\n")
 	return lignes[4:]
 }
@@ -36,7 +43,7 @@ func ParsingMap(nameCard string) []string {
 /*
 // Une carte valide respecte toutes ces règles. Votre parser doit produire **exactement** ces messages, comme `./arbitre --verifier` :
 //
-| Fichier vide | `<fichier> : fichier vide` |
+| Fichier vide | `<fichier> : fichier vide` | ✅
 | Clé inconnue | `<fichier> ligne N : clé inconnue "X"` |
 | Clé répétée | `<fichier> ligne N : X défini deux fois` |
 | Clé absente | `<fichier> : en-tête incomplet : X manquant` |
@@ -49,16 +56,33 @@ func ParsingMap(nameCard string) []string {
 | Départ absent | `<fichier> : aucun départ pour le joueur 2` | ✅
 */
 
-func MapIsValid(maps []string) bool {
+func MapIsValid(grid []string, width, height int) bool {
 	numberOneIsUsed := false
 	numberTwoIsUsed := false
 
-	for _, item := range maps {
+	if width < 3 || height < 3 {
+		println("TAILLE invalide : minimum 3 !")
+		return false
+	}
+
+	if len(grid) != height {
+		fmt.Printf("La map fait %d lignes au lieu de %d !\n", len(grid), height)
+		return false
+	}
+
+	for y, line := range grid {
+		if n := utf8.RuneCountInString(line); n != width {
+			fmt.Printf("La ligne %d fait %d caractères au lieu de %d !\n", y+1, n, width)
+			return false
+		}
+	}
+
+	for _, item := range grid {
 		for _, char := range item {
 			charStr := string(char)
 
 			if !slices.Contains(validCharacters, charStr) {
-				println("La game n'est pas valide, symbole inconnu!")
+				println("La map n'est pas valide, symbole inconnu!")
 				return false
 			}
 
@@ -81,10 +105,10 @@ func MapIsValid(maps []string) bool {
 	}
 
 	if !numberOneIsUsed {
-		println("La game n'est pas valide, car le joueur 1 n'est pas présent!")
+		println("La map n'est pas valide, car le joueur 1 n'est pas présent!")
 		return false
 	} else if !numberTwoIsUsed {
-		println("La game n'est pas valide, car le joueur 2 n'est pas présent!")
+		println("La map n'est pas valide, car le joueur 2 n'est pas présent!")
 	}
 
 	return true
