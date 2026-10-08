@@ -40,11 +40,11 @@ func LoadMap(nameCard string) (Map, error) {
 	i := 0
 
 	for ; i < len(lignes); i++ {
-		ligne := strings.TrimRight(lignes[i], "\r") // gère les fichiers Windows
+		ligne := strings.TrimRight(lignes[i], "\r")
 		if strings.TrimSpace(ligne) == "" {
 			continue
 		}
-		if strings.HasPrefix(ligne, "#") { // début de la grille
+		if strings.HasPrefix(ligne, "#") {
 			break
 		}
 
