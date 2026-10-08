@@ -23,6 +23,10 @@ func Logger() {
 	Log(GetDate(), GetPlayer("2"), GetAction("TIRE E"))
 }
 
+func LoggerObject() {
+	fmt.Println("PAS ENCORE DEV")
+}
+
 func WriteFile() error {
 	if err := os.MkdirAll("logs", 0755); err != nil {
 		return fmt.Errorf("impossible de créer le dossier logs : %w", err)
