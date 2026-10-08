@@ -3,21 +3,45 @@ package logger
 import (
 	iaPackage "arena/src/ia"
 	"fmt"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
 )
 
+var LogBuffer strings.Builder
+
+func Log(parts ...string) {
+	line := strings.Join(parts, " ")
+	LogBuffer.WriteString(line + "\n")
+	fmt.Println(line)
+}
+
 func Logger() {
-	fmt.Println(GetDate())
-	fmt.Println(GetPlayer("1"))
-	fmt.Println(GetPlayer("2"))
-	fmt.Println(GetAction("AVANCE N"))
+	Log(GetDate(), GetPlayer("1"), GetAction("AVANCE N"))
+	Log(GetDate(), GetPlayer("2"), GetAction("TIRE E"))
+}
+
+func WriteFile() error {
+	if err := os.MkdirAll("logs", 0755); err != nil {
+		return fmt.Errorf("impossible de créer le dossier logs : %w", err)
+	}
+
+	fileName := "partie-" + time.Now().Format("2006-01-02_15-04-05") + ".log"
+	path := filepath.Join("logs", fileName)
+
+	if err := os.WriteFile(path, []byte(LogBuffer.String()), 0644); err != nil {
+		return fmt.Errorf("impossible d'écrire %s : %w", path, err)
+	}
+
+	LogBuffer.Reset()
+	return nil
 }
 
 func GetAction(action string) string {
 	if !slices.Contains(iaPackage.Actions, action) {
-		fmt.Println(GetDate(), "Action invalide :", action)
+		Log(GetDate(), "Action invalide :", action)
 		return ""
 	}
 	return "[" + strings.ToLower(action) + "]"
