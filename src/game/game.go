@@ -2,10 +2,12 @@ package game
 
 import (
 	mapPackage "arena/src/map"
+	parsingrobot "arena/src/parsing_robot"
 	"bufio"
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 )
 
 func StartGame() {
@@ -45,8 +47,32 @@ func StartGame() {
 }
 
 func decide(m mapPackage.Map, state []string) string {
-	// AVANCE N|S|E|O, TIRE N|S|E|O ou ATTENDS
-	_ = m
-	_ = state
-	return "AVANCE S"
+	// TODO : parser les lignes avec votre package protocole,
+	// puis choisir entre AVANCE N|S|E|O, TIRE N|S|E|O et ATTENDS.
+	var enemy parsingrobot.Robot
+	var player parsingrobot.Robot
+	for _, line := range state {
+		fields := strings.Fields(line)
+		if len(fields) == 0 {
+			continue
+		}
+		if fields[0] == "MOI" {
+			robot, err := parsingrobot.ParseRobot(fields)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				return "ATTENDS"
+			}
+			player = robot
+		}
+		if fields[0] == "ENNEMI" {
+			robot, err := parsingrobot.ParseRobot(fields)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				return "ATTENDS"
+			}
+			enemy = robot
+		}
+	}
+	fmt.Fprintln(os.Stderr, "player:", player, "enemy:", enemy)
+	return "ATTENDS"
 }
