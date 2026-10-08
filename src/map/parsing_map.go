@@ -3,11 +3,20 @@ package _map
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 )
+
+type Map struct {
+	Name       string
+	Difficulty int
+	Rounds     int
+	Width      int
+	Height     int
+	Grid       []string
+}
 
 var validCharacters = []string{
 	"#", // = Mur Infranchissable (Arrête les tirs)
@@ -22,39 +31,78 @@ var validCharacters = []string{
 	".", // Endroit ou le joueur peut bouger
 }
 
-func ParsingMap(nameCard string) []string {
-	path := filepath.Join("../assets", "cartes", nameCard)
-	data, err := os.ReadFile(path)
+func LoadMap(nameCard string) (Map, error) {
+	lignes, err := ParsingMap(nameCard)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Carte introuvable :", err)
-		os.Exit(1)
+		return Map{}, err
+	}
+	var m Map
+	i := 0
+
+	for ; i < len(lignes); i++ {
+		ligne := strings.TrimRight(lignes[i], "\r") // gère les fichiers Windows
+		if strings.TrimSpace(ligne) == "" {
+			continue
+		}
+		if strings.HasPrefix(ligne, "#") { // début de la grille
+			break
+		}
+
+		cle, valeur, ok := strings.Cut(ligne, " ")
+		if !ok {
+			return m, fmt.Errorf("ligne %d invalide : %q", i+1, ligne)
+		}
+		valeur = strings.TrimSpace(valeur)
+
+		var err error
+		switch cle {
+		case "NOM":
+			m.Name = valeur
+		case "DIFFICULTE":
+			m.Difficulty, err = strconv.Atoi(valeur)
+		case "TOURS":
+			m.Rounds, err = strconv.Atoi(valeur)
+		case "TAILLE":
+			_, err = fmt.Sscanf(valeur, "%d %d", &m.Width, &m.Height)
+		default:
+			err = fmt.Errorf("clé inconnue %q", cle)
+		}
+		if err != nil {
+			return m, fmt.Errorf("ligne %d (%s) : %w", i+1, cle, err)
+		}
 	}
 
-	contenu := string(data) // []byte → string
-	if contenu == "" {
-		fmt.Fprintln(os.Stderr, "Carte invalide car vide:", nameCard)
-		os.Exit(1)
+	for ; i < len(lignes); i++ {
+		ligne := strings.TrimRight(lignes[i], "\r")
+		if ligne == "" {
+			continue
+		}
+		m.Grid = append(m.Grid, ligne)
 	}
 
-	lignes := strings.Split(contenu, "\n")
-	return lignes[4:]
+	if len(m.Grid) != m.Height {
+		return m, fmt.Errorf("hauteur attendue %d, trouvée %d", m.Height, len(m.Grid))
+	}
+	for y, row := range m.Grid {
+		if len([]rune(row)) != m.Width {
+			return m, fmt.Errorf("ligne %d de la grille : largeur %d au lieu de %d",
+				y+1, len([]rune(row)), m.Width)
+		}
+	}
+
+	return m, nil
 }
 
-/*
-// Une carte valide respecte toutes ces règles. Votre parser doit produire **exactement** ces messages, comme `./arbitre --verifier` :
-//
-| Fichier vide | `<fichier> : fichier vide` | ✅
-| Clé inconnue | `<fichier> ligne N : clé inconnue "X"` |
-| Clé répétée | `<fichier> ligne N : X défini deux fois` |
-| Clé absente | `<fichier> : en-tête incomplet : X manquant` |
-| Valeur incorrecte | `<fichier> ligne N : TAILLE attend deux entiers` (et messages équivalents pour les autres clés) |
-| Ligne de mauvaise largeur | `<fichier> ligne N : 12 cases, 11 attendues` |
-| Mauvais nombre de lignes | `<fichier> : 6 lignes de grille, 7 attendues` |
-| Symbole inconnu | `<fichier> ligne N colonne C : symbole inconnu "?"` |  ✅
-| Bordure ouverte | `<fichier> ligne N colonne C : la bordure doit être un mur` |
-| Départ répété | `<fichier> ligne N colonne C : départ du joueur 1 déjà défini` | ✅
-| Départ absent | `<fichier> : aucun départ pour le joueur 2` | ✅
-*/
+func ParsingMap(path string) ([]string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("carte introuvable : %w", err)
+	}
+	if len(strings.TrimSpace(string(data))) == 0 {
+		return nil, fmt.Errorf("carte vide : %s", path)
+	}
+	return strings.Split(string(data), "\n"), nil
+}
 
 func MapIsValid(grid []string, width, height int) bool {
 	numberOneIsUsed := false
