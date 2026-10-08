@@ -1,4 +1,4 @@
-package deciderobot
+package parsingrobot
 
 import (
 	"fmt"
