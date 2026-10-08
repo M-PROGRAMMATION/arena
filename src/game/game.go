@@ -10,7 +10,7 @@ import (
 
 func StartGame() {
 	mapPath := flag.String("carte", "", "fichier .map de la partie")
-	player := flag.Int("joueur", 0, "numéro du joueur (1 ou 2)")
+	player := flag.Int("joueur", 1, "numéro du joueur (1 ou 2)")
 	flag.Parse()
 
 	if *mapPath == "" {
