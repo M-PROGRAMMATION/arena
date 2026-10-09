@@ -104,31 +104,33 @@ func decide(m mapPackage.Map, state []string, turn, playerNum int, receivedAt ti
 	fmt.Fprintln(os.Stderr, "player:", player, "enemy:", enemy)
 	if player.Y == enemy.Y && player.X < enemy.X && enemy.X-player.X <= 5 {
 
-	if player.Y == enemy.Y && player.X < enemy.X && enemy.X-player.X <= 5 {
-		return "TIRE E"
-	}
-	if player.Y == enemy.Y && player.X > enemy.X && player.X-enemy.X <= 5 {
-		return "TIRE O"
-	}
-	if player.X == enemy.X && player.Y > enemy.Y && player.Y-enemy.Y <= 5 {
-		return "TIRE N"
-	}
-	if player.X == enemy.X && player.Y < enemy.Y && enemy.Y-player.Y <= 5 {
-		return "TIRE S"
-	}
-	if player.X < enemy.X && !isWall(m, player.X+1, player.Y) {
-		return "AVANCE E"
-	}
-	if player.X > enemy.X && !isWall(m, player.X-1, player.Y) {
-		return "AVANCE O"
-	}
-	if player.Y > enemy.Y && !isWall(m, player.X, player.Y-1) {
-		return "AVANCE N"
-	}
-	if player.Y < enemy.Y && !isWall(m, player.X, player.Y+1) {
-		return "AVANCE S"
-	}
+		if player.Y == enemy.Y && player.X < enemy.X && enemy.X-player.X <= 5 {
+			return "TIRE E"
+		}
+		if player.Y == enemy.Y && player.X > enemy.X && player.X-enemy.X <= 5 {
+			return "TIRE O"
+		}
+		if player.X == enemy.X && player.Y > enemy.Y && player.Y-enemy.Y <= 5 {
+			return "TIRE N"
+		}
+		if player.X == enemy.X && player.Y < enemy.Y && enemy.Y-player.Y <= 5 {
+			return "TIRE S"
+		}
+		if player.X < enemy.X && !isWall(m, player.X+1, player.Y) {
+			return "AVANCE E"
+		}
+		if player.X > enemy.X && !isWall(m, player.X-1, player.Y) {
+			return "AVANCE O"
+		}
+		if player.Y > enemy.Y && !isWall(m, player.X, player.Y-1) {
+			return "AVANCE N"
+		}
+		if player.Y < enemy.Y && !isWall(m, player.X, player.Y+1) {
+			return "AVANCE S"
+		}
 
+		return "ATTENDS"
+	}
 	return "ATTENDS"
 }
 
