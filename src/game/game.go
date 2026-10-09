@@ -102,16 +102,16 @@ func decide(m mapPackage.Map, state []string, turn, playerNum int, receivedAt ti
 		}
 	}
 	fmt.Fprintln(os.Stderr, "player:", player, "enemy:", enemy)
-	if player.Y == enemy.Y && player.X < enemy.X && enemy.X-player.X <= 5 {
+	if player.Y == enemy.Y && player.X < enemy.X && enemy.X-player.X <= 5 && !wallInRow(m, player.Y, player.X, enemy.X) {
 		return "TIRE E"
 	}
-	if player.Y == enemy.Y && player.X > enemy.X && player.X-enemy.X <= 5 {
+	if player.Y == enemy.Y && player.X > enemy.X && player.X-enemy.X <= 5 && !wallInRow(m, player.Y, enemy.X, player.X){
 		return "TIRE O"
 	}
-	if player.X == enemy.X && player.Y > enemy.Y && player.Y-enemy.Y <= 5 {
+	if player.X == enemy.X && player.Y > enemy.Y && player.Y-enemy.Y <= 5 && !wallInColumn(m, player.X, enemy.Y, player.Y) {
 		return "TIRE N"
 	}
-	if player.X == enemy.X && player.Y < enemy.Y && enemy.Y-player.Y <= 5 {
+	if player.X == enemy.X && player.Y < enemy.Y && enemy.Y-player.Y <= 5 && !wallInColumn(m, player.X, player.Y, enemy.Y) {
 		return "TIRE S"
 	}
 	if player.X < enemy.X && !isWall(m, player.X+1, player.Y) {
@@ -141,4 +141,22 @@ func decideWarmup(m mapPackage.Map) string {
 
 func isWall(m mapPackage.Map, x int, y int) bool {
 	return m.Grid[y][x] == '#'
+}
+
+func wallInRow(m mapPackage.Map, y int, from int, to int) bool {
+	for x := from + 1; x < to; x++ {
+		if isWall(m, x, y) {
+			return true
+		}
+	}
+	return false
+}
+
+func wallInColumn(m mapPackage.Map, x int, from int, to int) bool{
+	for y := from + 1; y < to; y++ {
+		if isWall(m, x, y) {
+			return true
+		}
+	}
+	return false
 }
