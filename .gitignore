@@ -16,6 +16,9 @@
 /.idea/*
 .idea/
 
+logs/*
+!logs/.gitkeep
+
 .DS_Store
 
 # Code coverage profiles and other test artifacts

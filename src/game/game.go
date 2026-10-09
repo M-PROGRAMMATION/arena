@@ -1,6 +1,7 @@
 package game
 
 import (
+	"arena/src/logger"
 	mapPackage "arena/src/map"
 	parsingrobot "arena/src/parsing_robot"
 	"bufio"
@@ -8,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 )
 
 func StartGame() {
@@ -31,31 +33,56 @@ func StartGame() {
 		os.Exit(1)
 	}
 
-	fmt.Println(os.Stderr, "Carte %q chargée (%dx%d, %d tours) — joueur %d\n", m.Name, m.Width, m.Height, m.Rounds, *player)
+	fmt.Fprintf(os.Stderr, "Carte %q chargée (%dx%d, %d tours) — joueur %d\n",
+		m.Name, m.Width, m.Height, m.Rounds, *player)
 
 	scanner := bufio.NewScanner(os.Stdin)
 	var state []string
+	var receivedAt time.Time
+	turn := 0
+
+	_ = decideWarmup(m)
+
 	for scanner.Scan() {
+		if receivedAt.IsZero() {
+			receivedAt = time.Now() // première ligne du tour = début du chrono
+		}
+
 		line := scanner.Text()
 		if line != "FIN" {
 			state = append(state, line)
 			continue
 		}
-		fmt.Println(decide(m, state))
+
+		turn++
+		fmt.Println(decide(m, state, turn, *player, receivedAt))
 		state = state[:0]
+		receivedAt = time.Time{}
+	}
+
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintln(os.Stderr, "Erreur de lecture :", err)
+	}
+
+	if err := logger.WriteFile(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
 	}
 }
 
-func decide(m mapPackage.Map, state []string) string {
-	// TODO : parser les lignes avec votre package protocole,
-	// puis choisir entre AVANCE N|S|E|O, TIRE N|S|E|O et ATTENDS.
+func decide(m mapPackage.Map, state []string, turn, playerNum int, receivedAt time.Time) (action string) {
+	defer func() {
+		logger.LogTurn(turn, playerNum, action, receivedAt, time.Now())
+	}()
+
 	var enemy parsingrobot.Robot
 	var player parsingrobot.Robot
+
 	for _, line := range state {
 		fields := strings.Fields(line)
 		if len(fields) == 0 {
 			continue
 		}
+
 		if fields[0] == "MOI" {
 			robot, err := parsingrobot.ParseRobot(fields)
 			if err != nil {
@@ -64,6 +91,7 @@ func decide(m mapPackage.Map, state []string) string {
 			}
 			player = robot
 		}
+
 		if fields[0] == "ENNEMI" {
 			robot, err := parsingrobot.ParseRobot(fields)
 			if err != nil {
@@ -74,6 +102,8 @@ func decide(m mapPackage.Map, state []string) string {
 		}
 	}
 	fmt.Fprintln(os.Stderr, "player:", player, "enemy:", enemy)
+	if player.Y == enemy.Y && player.X < enemy.X && enemy.X-player.X <= 5 {
+
 	if player.Y == enemy.Y && player.X < enemy.X && enemy.X-player.X <= 5 {
 		return "TIRE E"
 	}
@@ -100,6 +130,16 @@ func decide(m mapPackage.Map, state []string) string {
 	}
 
 	return "ATTENDS"
+}
+
+// TODO: à refaire et optimiser
+func decideWarmup(m mapPackage.Map) string {
+	fake := []string{"MOI 0 0", "ENNEMI 1 0"}
+	r1, _ := parsingrobot.ParseRobot(strings.Fields(fake[0]))
+	r2, _ := parsingrobot.ParseRobot(strings.Fields(fake[1]))
+	_ = fmt.Sprint(r1, r2)
+	_ = time.Now().Format("15:04:05.000")
+	return ""
 }
 
 func isWall(m mapPackage.Map, x int, y int) bool {
