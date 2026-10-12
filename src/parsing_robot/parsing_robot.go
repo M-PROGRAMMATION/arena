@@ -9,10 +9,12 @@ type Robot struct {
 	X      int
 	Y      int
 	Health int
+	Ammo   int
+	Shield int
 }
 
 func ParseRobot(fields []string) (Robot, error) {
-	if len(fields) != 5 {
+	if len(fields) < 5 {
 		return Robot{}, fmt.Errorf("robot line: expected 5 fields, got %d", len(fields))
 	}
 	x, err := strconv.Atoi(fields[1])
