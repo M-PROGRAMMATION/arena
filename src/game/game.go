@@ -16,7 +16,6 @@ import (
 func StartGame() {
 	mapPath := flag.String("carte", "", "fichier .map de la partie")
 	player := flag.Int("joueur", 1, "numéro du joueur (1 ou 2)")
-	protocole := flag.Int("protocole", 1, "protocole choice")
 	flag.Parse()
 
 	if *mapPath == "" {
@@ -29,19 +28,11 @@ func StartGame() {
 		os.Exit(1)
 	}
 
-	if *protocole != 1 && *protocole != 2 && *protocole != 3 {
-		fmt.Fprintln(os.Stderr, "Erreur : -protocole doit valoir 1, 2 ou 3")
-		os.Exit(1)
-	}
-
 	m, err := mapPackage.LoadMap(*mapPath)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Erreur de carte :", err)
 		os.Exit(1)
 	}
-
-	fmt.Fprintf(os.Stderr, "Carte %q chargée (%dx%d, %d tours) — joueur %d\n",
-		m.Name, m.Width, m.Height, m.Rounds, *player)
 
 	scanner := bufio.NewScanner(os.Stdin)
 	var state []string
@@ -60,7 +51,7 @@ func StartGame() {
 		}
 
 		turn++
-		fmt.Println(decide(m, state, turn, *player, receivedAt, *protocole))
+		fmt.Println(decide(m, state, turn, *player, receivedAt))
 		state = state[:0]
 		receivedAt = time.Time{}
 	}
@@ -74,7 +65,7 @@ func StartGame() {
 	}
 }
 
-func decide(m mapPackage.Map, state []string, turn, playerNum int, receivedAt time.Time, protocole int) (action string) {
+func decide(m mapPackage.Map, state []string, turn, playerNum int, receivedAt time.Time) (action string) {
 	var enemy parsingrobot.Robot
 	var player parsingrobot.Robot
 	var seenMe, seenEnemy bool
@@ -83,7 +74,8 @@ func decide(m mapPackage.Map, state []string, turn, playerNum int, receivedAt ti
 		logger.LogTurn(turn, playerNum, action,
 			logger.Position{X: player.X, Y: player.Y, Visible: seenMe},
 			logger.Position{X: enemy.X, Y: enemy.Y, Visible: seenEnemy},
-			receivedAt, time.Now())
+			receivedAt, time.Now(),
+		)
 	}()
 
 	for _, line := range state {
