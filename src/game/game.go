@@ -113,7 +113,7 @@ func decide(m mapPackage.Map, state []string, turn, playerNum int, receivedAt ti
 	if player.Y == enemy.Y && player.X < enemy.X && enemy.X-player.X <= 5 && !objects.WallInRow(m, player.Y, player.X, enemy.X) {
 		return "TIRE E"
 	}
-	if player.Y == enemy.Y && player.X > enemy.X && player.X-enemy.X <= 5 && !wallInRow(m, player.Y, enemy.X, player.X) {
+	if player.Y == enemy.Y && player.X > enemy.X && player.X-enemy.X <= 5 && !objects.WallInRow(m, player.Y, enemy.X, player.X) {
 		return "TIRE O"
 	}
 	if player.X == enemy.X && player.Y > enemy.Y && player.Y-enemy.Y <= 5 && !objects.WallInColumn(m, player.X, enemy.Y, player.Y) {
@@ -141,38 +141,6 @@ func decide(m mapPackage.Map, state []string, turn, playerNum int, receivedAt ti
 	return "ATTENDS"
 }
 
-// TODO: à refaire et optimiser
-func decideWarmup(m mapPackage.Map) string {
-	fake := []string{"MOI 0 0", "ENNEMI 1 0"}
-	r1, _ := parsingrobot.ParseRobot(strings.Fields(fake[0]))
-	r2, _ := parsingrobot.ParseRobot(strings.Fields(fake[1]))
-	_ = fmt.Sprint(r1, r2)
-	_ = time.Now().Format("15:04:05.000")
-	return ""
-}
-
-func isWall(m mapPackage.Map, x int, y int) bool {
-	return m.Grid[y][x] == '#'
-}
-
-func wallInRow(m mapPackage.Map, y int, from int, to int) bool {
-	for x := from + 1; x < to; x++ {
-		if isWall(m, x, y) {
-			return true
-		}
-	}
-	return false
-}
-
-func wallInColumn(m mapPackage.Map, x int, from int, to int) bool {
-	for y := from + 1; y < to; y++ {
-		if isWall(m, x, y) {
-			return true
-		}
-	}
-	return false
-}
-
 func distancesFrom(m mapPackage.Map, target Point) [][]int {
 	dist := make([][]int, m.Height)
 	for y := 0; y < m.Height; y++ {
@@ -196,7 +164,7 @@ func distancesFrom(m mapPackage.Map, target Point) [][]int {
 			{current.X, current.Y - 1},
 		}
 		for _, n := range neighbors {
-			if !isWall(m, n.X, n.Y) && dist[n.Y][n.X] == -1 {
+			if !objects.IsWall(m, n.X, n.Y) && dist[n.Y][n.X] == -1 {
 				dist[n.Y][n.X] = dist[current.Y][current.X] + 1
 				queue = append(queue, n)
 			}
