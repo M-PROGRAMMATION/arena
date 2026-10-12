@@ -1,6 +1,7 @@
 package game
 
 import (
+	"arena/src/game/objects"
 	"arena/src/logger"
 	mapPackage "arena/src/map"
 	parsingrobot "arena/src/parsing_robot"
@@ -38,15 +39,10 @@ func StartGame() {
 		os.Exit(1)
 	}
 
-	fmt.Fprintf(os.Stderr, "Carte %q chargée (%dx%d, %d tours) — joueur %d\n",
-		m.Name, m.Width, m.Height, m.Rounds, *player)
-
 	scanner := bufio.NewScanner(os.Stdin)
 	var state []string
 	var receivedAt time.Time
 	turn := 0
-
-	_ = decideWarmup(m)
 
 	for scanner.Scan() {
 		if receivedAt.IsZero() {
@@ -83,7 +79,8 @@ func decide(m mapPackage.Map, state []string, turn, playerNum int, receivedAt ti
 		logger.LogTurn(turn, playerNum, action,
 			logger.Position{X: player.X, Y: player.Y, Visible: seenMe},
 			logger.Position{X: enemy.X, Y: enemy.Y, Visible: seenEnemy},
-			receivedAt, time.Now())
+			receivedAt, time.Now(),
+		)
 	}()
 
 	for _, line := range state {
@@ -112,17 +109,17 @@ func decide(m mapPackage.Map, state []string, turn, playerNum int, receivedAt ti
 			seenEnemy = true
 		}
 	}
-	fmt.Fprintln(os.Stderr, "player:", player, "enemy:", enemy)
-	if player.Y == enemy.Y && player.X < enemy.X && enemy.X-player.X <= 5 && !wallInRow(m, player.Y, player.X, enemy.X) {
+
+	if player.Y == enemy.Y && player.X < enemy.X && enemy.X-player.X <= 5 && !objects.WallInRow(m, player.Y, player.X, enemy.X) {
 		return "TIRE E"
 	}
 	if player.Y == enemy.Y && player.X > enemy.X && player.X-enemy.X <= 5 && !wallInRow(m, player.Y, enemy.X, player.X) {
 		return "TIRE O"
 	}
-	if player.X == enemy.X && player.Y > enemy.Y && player.Y-enemy.Y <= 5 && !wallInColumn(m, player.X, enemy.Y, player.Y) {
+	if player.X == enemy.X && player.Y > enemy.Y && player.Y-enemy.Y <= 5 && !objects.WallInColumn(m, player.X, enemy.Y, player.Y) {
 		return "TIRE N"
 	}
-	if player.X == enemy.X && player.Y < enemy.Y && enemy.Y-player.Y <= 5 && !wallInColumn(m, player.X, player.Y, enemy.Y) {
+	if player.X == enemy.X && player.Y < enemy.Y && enemy.Y-player.Y <= 5 && !objects.WallInColumn(m, player.X, player.Y, enemy.Y) {
 		return "TIRE S"
 	}
 
