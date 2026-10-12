@@ -1,6 +1,7 @@
 package game
 
 import (
+	"arena/src/game/objects"
 	"arena/src/logger"
 	mapPackage "arena/src/map"
 	parsingrobot "arena/src/parsing_robot"
@@ -15,6 +16,7 @@ import (
 func StartGame() {
 	mapPath := flag.String("carte", "", "fichier .map de la partie")
 	player := flag.Int("joueur", 1, "numéro du joueur (1 ou 2)")
+	protocole := flag.Int("protocole", 1, "protocole choice")
 	flag.Parse()
 
 	if *mapPath == "" {
@@ -24,6 +26,11 @@ func StartGame() {
 
 	if *player != 1 && *player != 2 {
 		fmt.Fprintln(os.Stderr, "Erreur : -joueur doit valoir 1 ou 2")
+		os.Exit(1)
+	}
+
+	if *protocole != 1 && *protocole != 2 && *protocole != 3 {
+		fmt.Fprintln(os.Stderr, "Erreur : -protocole doit valoir 1, 2 ou 3")
 		os.Exit(1)
 	}
 
@@ -41,8 +48,6 @@ func StartGame() {
 	var receivedAt time.Time
 	turn := 0
 
-	_ = decideWarmup(m)
-
 	for scanner.Scan() {
 		if receivedAt.IsZero() {
 			receivedAt = time.Now() // première ligne du tour = début du chrono
@@ -55,7 +60,7 @@ func StartGame() {
 		}
 
 		turn++
-		fmt.Println(decide(m, state, turn, *player, receivedAt))
+		fmt.Println(decide(m, state, turn, *player, receivedAt, *protocole))
 		state = state[:0]
 		receivedAt = time.Time{}
 	}
@@ -69,7 +74,7 @@ func StartGame() {
 	}
 }
 
-func decide(m mapPackage.Map, state []string, turn, playerNum int, receivedAt time.Time) (action string) {
+func decide(m mapPackage.Map, state []string, turn, playerNum int, receivedAt time.Time, protocole int) (action string) {
 	var enemy parsingrobot.Robot
 	var player parsingrobot.Robot
 	var seenMe, seenEnemy bool
@@ -107,62 +112,30 @@ func decide(m mapPackage.Map, state []string, turn, playerNum int, receivedAt ti
 			seenEnemy = true
 		}
 	}
-	fmt.Fprintln(os.Stderr, "player:", player, "enemy:", enemy)
-	if player.Y == enemy.Y && player.X < enemy.X && enemy.X-player.X <= 5 && !wallInRow(m, player.Y, player.X, enemy.X) {
+
+	if player.Y == enemy.Y && player.X < enemy.X && enemy.X-player.X <= 5 && !objects.WallInRow(m, player.Y, player.X, enemy.X) {
 		return "TIRE E"
 	}
-	if player.Y == enemy.Y && player.X > enemy.X && player.X-enemy.X <= 5 && !wallInRow(m, player.Y, enemy.X, player.X){
+	if player.Y == enemy.Y && player.X > enemy.X && player.X-enemy.X <= 5 && !objects.WallInRow(m, player.Y, enemy.X, player.X) {
 		return "TIRE O"
 	}
-	if player.X == enemy.X && player.Y > enemy.Y && player.Y-enemy.Y <= 5 && !wallInColumn(m, player.X, enemy.Y, player.Y) {
+	if player.X == enemy.X && player.Y > enemy.Y && player.Y-enemy.Y <= 5 && !objects.WallInColumn(m, player.X, enemy.Y, player.Y) {
 		return "TIRE N"
 	}
-	if player.X == enemy.X && player.Y < enemy.Y && enemy.Y-player.Y <= 5 && !wallInColumn(m, player.X, player.Y, enemy.Y) {
+	if player.X == enemy.X && player.Y < enemy.Y && enemy.Y-player.Y <= 5 && !objects.WallInColumn(m, player.X, player.Y, enemy.Y) {
 		return "TIRE S"
 	}
-	if player.X < enemy.X && !isWall(m, player.X+1, player.Y) {
+	if player.X < enemy.X && !objects.IsWall(m, player.X+1, player.Y) {
 		return "AVANCE E"
 	}
-	if player.X > enemy.X && !isWall(m, player.X-1, player.Y) {
+	if player.X > enemy.X && !objects.IsWall(m, player.X-1, player.Y) {
 		return "AVANCE O"
 	}
-	if player.Y > enemy.Y && !isWall(m, player.X, player.Y-1) {
+	if player.Y > enemy.Y && !objects.IsWall(m, player.X, player.Y-1) {
 		return "AVANCE N"
 	}
-	if player.Y < enemy.Y && !isWall(m, player.X, player.Y+1) {
+	if player.Y < enemy.Y && !objects.IsWall(m, player.X, player.Y+1) {
 		return "AVANCE S"
 	}
 	return "ATTENDS"
-}
-
-// TODO: à refaire et optimiser
-func decideWarmup(m mapPackage.Map) string {
-	fake := []string{"MOI 0 0", "ENNEMI 1 0"}
-	r1, _ := parsingrobot.ParseRobot(strings.Fields(fake[0]))
-	r2, _ := parsingrobot.ParseRobot(strings.Fields(fake[1]))
-	_ = fmt.Sprint(r1, r2)
-	_ = time.Now().Format("15:04:05.000")
-	return ""
-}
-
-func isWall(m mapPackage.Map, x int, y int) bool {
-	return m.Grid[y][x] == '#'
-}
-
-func wallInRow(m mapPackage.Map, y int, from int, to int) bool {
-	for x := from + 1; x < to; x++ {
-		if isWall(m, x, y) {
-			return true
-		}
-	}
-	return false
-}
-
-func wallInColumn(m mapPackage.Map, x int, from int, to int) bool{
-	for y := from + 1; y < to; y++ {
-		if isWall(m, x, y) {
-			return true
-		}
-	}
-	return false
 }
