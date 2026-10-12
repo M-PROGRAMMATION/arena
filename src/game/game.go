@@ -64,18 +64,22 @@ func StartGame() {
 		fmt.Fprintln(os.Stderr, "Erreur de lecture :", err)
 	}
 
-	if err := logger.WriteFile(); err != nil {
+	if err := logger.WriteFile(*player); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
 }
 
 func decide(m mapPackage.Map, state []string, turn, playerNum int, receivedAt time.Time) (action string) {
-	defer func() {
-		logger.LogTurn(turn, playerNum, action, receivedAt, time.Now())
-	}()
-
 	var enemy parsingrobot.Robot
 	var player parsingrobot.Robot
+	var seenMe, seenEnemy bool
+
+	defer func() {
+		logger.LogTurn(turn, playerNum, action,
+			logger.Position{X: player.X, Y: player.Y, Visible: seenMe},
+			logger.Position{X: enemy.X, Y: enemy.Y, Visible: seenEnemy},
+			receivedAt, time.Now())
+	}()
 
 	for _, line := range state {
 		fields := strings.Fields(line)
@@ -90,6 +94,7 @@ func decide(m mapPackage.Map, state []string, turn, playerNum int, receivedAt ti
 				return "ATTENDS"
 			}
 			player = robot
+			seenMe = true
 		}
 
 		if fields[0] == "ENNEMI" {
@@ -99,6 +104,7 @@ func decide(m mapPackage.Map, state []string, turn, playerNum int, receivedAt ti
 				return "ATTENDS"
 			}
 			enemy = robot
+			seenEnemy = true
 		}
 	}
 	fmt.Fprintln(os.Stderr, "player:", player, "enemy:", enemy)
