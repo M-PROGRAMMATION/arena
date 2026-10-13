@@ -1,0 +1,134 @@
+name: Production Release
+
+on:
+  push:
+    tags:
+      - '*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build ${{ matrix.goos }}-${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Windows
+          - goos: windows
+            goarch: amd64
+            extension: .exe
+            archive: zip
+
+          - goos: windows
+            goarch: arm64
+            extension: .exe
+            archive: zip
+
+          # Linux
+          - goos: linux
+            goarch: amd64
+            extension: ''
+            archive: tar.gz
+
+          - goos: linux
+            goarch: arm64
+            extension: ''
+            archive: tar.gz
+
+          # macOS Intel
+          - goos: darwin
+            goarch: amd64
+            extension: ''
+            archive: tar.gz
+
+          # macOS Apple Silicon (M1, M2, M3, etc.)
+          - goos: darwin
+            goarch: arm64
+            extension: ''
+            archive: tar.gz
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify tag belongs to main
+        run: |
+          git fetch origin main
+          TAG_COMMIT=$(git rev-list -n 1 "$GITHUB_REF_NAME")
+
+          if ! git merge-base --is-ancestor "$TAG_COMMIT" origin/main; then
+            echo "Error: this tag does not point to a commit on main."
+            exit 1
+          fi
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.27.1'
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          mkdir -p dist
+
+          VERSION="${GITHUB_REF_NAME}"
+          BINARY_NAME="arena${{ matrix.extension }}"
+          OUTPUT="dist/arena-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}"
+
+          mkdir -p "$OUTPUT"
+
+          go build -trimpath -ldflags="-s -w" -o "$OUTPUT/$BINARY_NAME" ./src
+
+          cp -R assets "$OUTPUT/assets"
+
+      - name: Package ZIP
+        if: matrix.archive == 'zip'
+        run: |
+          cd dist
+          zip -r "arena-${GITHUB_REF_NAME}-${{ matrix.goos }}-${{ matrix.goarch }}.zip" \
+            "arena-${GITHUB_REF_NAME}-${{ matrix.goos }}-${{ matrix.goarch }}"
+
+      - name: Package TAR.GZ
+        if: matrix.archive == 'tar.gz'
+        run: |
+          cd dist
+          tar -czf "arena-${GITHUB_REF_NAME}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz" \
+            "arena-${GITHUB_REF_NAME}-${{ matrix.goos }}-${{ matrix.goarch }}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: arena-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/*.${{ matrix.archive == 'zip' && 'zip' || 'tar.gz' }}
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    needs: release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$TAG" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Arena $TAG" \
+            --generate-notes
