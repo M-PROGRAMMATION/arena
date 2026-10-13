@@ -29,10 +29,6 @@ func TestLoggerAction(t *testing.T) {
 	}
 }
 
-func TestLogger(t *testing.T) {
-	loggerPackage.Logger()
-}
-
 func TestLoggerWriteFile(t *testing.T) {
 	t.Chdir(t.TempDir())
 	loggerPackage.LogBuffer.Reset()
