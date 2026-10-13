@@ -1,19 +1,59 @@
-# arena
+# Robot MM · Arena
+Robot de combat développé en Go dans le cadre du projet Arena.
 
-Build:
-`go build -o build/robot ./src`
+## Installation
+Compiler le robot :
 
-Launch mode **CIBLE** :
-`build/arbitre --carte assets/cartes/niveau1/arene.map --robot1 build/robot --robot2 cible`
+```bash
+go build -o build/robot ./src
+```
 
-Launch mode **BLEU** :
-`build/arbitre --carte assets/cartes/niveau1/arene.map --robot1 build/robot --robot2 bleu`
+## Lancement
+Lancer une partie contre différents adversaires avec l'arbitre.
 
-Launch mode **CHASSEUR** :
-`build/arbitre --carte assets/cartes/niveau1/arene.map --robot1 build/robot --robot2 chasseur`
+### Mode CIBLE
 
-Launch mode **VETERAN** :
-`build/arbitre --carte assets/cartes/niveau1/arene.map --robot1 build/robot --robot2 veteran`
+```bash
+build/arbitre --carte assets/cartes/niveau1/arene.map --robot1 build/robot --robot2 cible
+```
 
-Launch test :
-`go test -v ./...`
+### Mode BLEU
+
+```bash
+build/arbitre --carte assets/cartes/niveau1/arene.map --robot1 build/robot --robot2 bleu
+```
+
+### Mode CHASSEUR
+
+```bash
+build/arbitre --carte assets/cartes/niveau1/arene.map --robot1 build/robot --robot2 chasseur
+```
+
+### Mode VETERAN
+
+```bash
+build/arbitre --carte assets/cartes/niveau1/arene.map --robot1 build/robot --robot2 veteran
+```
+
+## Tests
+Exécuter les tests du projet :
+
+```bash
+go test -v ./...
+```
+
+## Architecture
+
+| Dossier / Fichier | Description |
+|---|---|
+| `src/` | Contient le code source du robot. |
+| `src/game/` | Gère la logique du jeu. |
+| `src/ia/` | Contient l'intelligence artificielle du robot. |
+| `src/logger/` | Gère les logs de l'application. |
+| `src/map/` | Gère les cartes de l'arène. |
+| `src/parsing_robot/` | Gère l'analyse des données du robot. |
+| `src/main.go` | Point d'entrée du programme. |
+| `tests/` | Contient les tests du projet. |
+
+## Notre IA
+L'intelligence artificielle analyse son environnement et choisit les actions à effectuer pour se déplacer dans l'arène et affronter son adversaire.
