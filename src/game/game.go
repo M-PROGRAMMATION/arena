@@ -138,8 +138,14 @@ func decide(m mapPackage.Map, state []string, turn, playerNum int, receivedAt ti
 		return "TIRE S"
 	}
 
+	dx := enemy.X - player.X
+	dy := enemy.Y - player.Y
+	if (dx == 1 || dx == -1) && (dy == 1 || dy == -1) {
+		return "ATTENDS"
+	}
+
 	target := Point{X: enemy.X, Y: enemy.Y}
-	fromMe := distancesFrom(m, Point{X: player.X, Y: player.Y})
+	fromMe := distancesFrom(m, Point{X: player.X, Y: player.Y}, false)
 
 	healPos, healDist := nearest(m, items, "SOIN", fromMe)
 	ammoPos, ammoDist := nearest(m, items, "MUNITION", fromMe)
@@ -153,7 +159,16 @@ func decide(m mapPackage.Map, state []string, turn, playerNum int, receivedAt ti
 		target = shieldPos
 	}
 
-	dist := distancesFrom(m, target)
+	safe := distancesFrom(m, target, true)
+	direct := distancesFrom(m, target, false)
+
+	safeLen := safe[player.Y][player.X]
+	directLen := direct[player.Y][player.X]
+
+	dist := direct
+	if safeLen != -1 && safeLen <= directLen+2 {
+		dist = safe
+	}
 
 	here := dist[player.Y][player.X]
 
@@ -172,7 +187,7 @@ func decide(m mapPackage.Map, state []string, turn, playerNum int, receivedAt ti
 	return "ATTENDS"
 }
 
-func distancesFrom(m mapPackage.Map, target Point) [][]int {
+func distancesFrom(m mapPackage.Map, target Point, avoidDanger bool) [][]int {
 	dist := make([][]int, m.Height)
 	for y := 0; y < m.Height; y++ {
 		dist[y] = make([]int, m.Width)
@@ -195,7 +210,7 @@ func distancesFrom(m mapPackage.Map, target Point) [][]int {
 			{current.X, current.Y - 1},
 		}
 		for _, n := range neighbors {
-			if !objects.IsWall(m, n.X, n.Y) && dist[n.Y][n.X] == -1 {
+						if !objects.IsWall(m, n.X, n.Y) && dist[n.Y][n.X] == -1 && !(avoidDanger && isDanger(m, n.X, n.Y)) {
 				dist[n.Y][n.X] = dist[current.Y][current.X] + 1
 				queue = append(queue, n)
 			}
@@ -227,4 +242,8 @@ func nearest(m mapPackage.Map, items []parsingrobot.Object, kind string, fromMe 
 		}
 	}
 	return best, bestDist
+}
+
+func isDanger(m mapPackage.Map, x int, y int) bool {
+	return objects.IsWater(m, x, y) || objects.IsTrap(m, x, y)
 }
