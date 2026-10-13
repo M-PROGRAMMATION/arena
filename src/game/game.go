@@ -73,6 +73,7 @@ func StartGame() {
 func decide(m mapPackage.Map, state []string, turn, playerNum int, receivedAt time.Time) (action string) {
 	var enemy parsingrobot.Robot
 	var player parsingrobot.Robot
+	var items []parsingrobot.Object
 	var seenMe, seenEnemy bool
 
 	defer func() {
@@ -108,22 +109,52 @@ func decide(m mapPackage.Map, state []string, turn, playerNum int, receivedAt ti
 			enemy = robot
 			seenEnemy = true
 		}
+
+		if fields[0] == "OBJET" {
+			obj, err := parsingrobot.ParseObject(fields)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				return "ATTENDS"
+			}
+			items = append(items, obj)
+		}
 	}
 
-	if player.Y == enemy.Y && player.X < enemy.X && enemy.X-player.X <= 5 && !objects.WallInRow(m, player.Y, player.X, enemy.X) {
+	if !inside(m, enemy.X, enemy.Y) || !inside(m, player.X, player.Y) {
+		fmt.Fprintln(os.Stderr, "robot position outside the map")
+		return "ATTENDS"
+	}
+
+	if player.Ammo != 0 && player.Y == enemy.Y && player.X < enemy.X && enemy.X-player.X <= 5 && !objects.WallInRow(m, player.Y, player.X, enemy.X) {
 		return "TIRE E"
 	}
-	if player.Y == enemy.Y && player.X > enemy.X && player.X-enemy.X <= 5 && !objects.WallInRow(m, player.Y, enemy.X, player.X) {
+	if player.Ammo != 0 && player.Y == enemy.Y && player.X > enemy.X && player.X-enemy.X <= 5 && !objects.WallInRow(m, player.Y, enemy.X, player.X) {
 		return "TIRE O"
 	}
-	if player.X == enemy.X && player.Y > enemy.Y && player.Y-enemy.Y <= 5 && !objects.WallInColumn(m, player.X, enemy.Y, player.Y) {
+	if player.Ammo != 0 && player.X == enemy.X && player.Y > enemy.Y && player.Y-enemy.Y <= 5 && !objects.WallInColumn(m, player.X, enemy.Y, player.Y) {
 		return "TIRE N"
 	}
-	if player.X == enemy.X && player.Y < enemy.Y && enemy.Y-player.Y <= 5 && !objects.WallInColumn(m, player.X, player.Y, enemy.Y) {
+	if player.Ammo != 0 && player.X == enemy.X && player.Y < enemy.Y && enemy.Y-player.Y <= 5 && !objects.WallInColumn(m, player.X, player.Y, enemy.Y) {
 		return "TIRE S"
 	}
 
-	dist := distancesFrom(m, Point{X: enemy.X, Y: enemy.Y})
+	target := Point{X: enemy.X, Y: enemy.Y}
+	fromMe := distancesFrom(m, Point{X: player.X, Y: player.Y})
+
+	healPos, healDist := nearest(m, items, "SOIN", fromMe)
+	ammoPos, ammoDist := nearest(m, items, "MUNITION", fromMe)
+	shieldPos, shieldDist := nearest(m, items, "BOUCLIER", fromMe)
+
+	if player.Health <= 50 && healDist != -1 {
+		target = healPos
+	} else if player.Ammo >= 0 && player.Ammo <= 2 && ammoDist != -1 {
+		target = ammoPos
+	} else if player.Shield == 0 && shieldDist != -1 && shieldDist <= 5 {
+		target = shieldPos
+	}
+
+	dist := distancesFrom(m, target)
+
 	here := dist[player.Y][player.X]
 
 	if dist[player.Y][player.X+1] == here-1 {
@@ -172,4 +203,28 @@ func distancesFrom(m mapPackage.Map, target Point) [][]int {
 	}
 
 	return dist
+}
+
+func inside(m mapPackage.Map, x int, y int) bool {
+	return x >= 0 && x < m.Width && y >= 0 && y < m.Height
+}
+
+func nearest(m mapPackage.Map, items []parsingrobot.Object, kind string, fromMe [][]int) (Point, int) {
+	best := Point{}
+	bestDist := -1
+
+	for _, item := range items {
+		if item.Kind != kind || !inside(m, item.X, item.Y) {
+			continue
+		}
+		d := fromMe[item.Y][item.X]
+		if d == -1 {
+			continue
+		}
+		if bestDist == -1 || d < bestDist {
+			best = Point{X: item.X, Y: item.Y}
+			bestDist = d
+		}
+	}
+	return best, bestDist
 }
