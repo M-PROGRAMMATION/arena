@@ -212,7 +212,7 @@ func decide(m mapPackage.Map, state []string, turn, playerNum int, receivedAt ti
 		target = healPos
 	} else if player.Ammo >= 0 && player.Ammo <= 2 && ammoDist != -1 {
 		target = ammoPos
-	} else if turn <= m.Rounds/10 && treasureDist != -1 {
+	} else if turn <= m.Rounds/20 && treasureDist != -1 {
 		target = treasurePos
 	} else if player.Shield == 0 && shieldDist != -1 && shieldDist <= 5 {
 		target = shieldPos

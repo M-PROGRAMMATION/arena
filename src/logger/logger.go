@@ -23,7 +23,7 @@ type Position struct {
 func Log(parts ...string) {
 	line := strings.Join(parts, " ")
 	LogBuffer.WriteString(line + "\n")
-	fmt.Fprintln(os.Stderr, line) // stderr ! stdout est réservé au protocole
+	fmt.Fprintln(os.Stderr, line)
 }
 
 func (p Position) String() string {
