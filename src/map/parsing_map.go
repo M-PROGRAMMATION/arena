@@ -125,6 +125,21 @@ func MapIsValid(grid []string, width, height int) bool {
 		}
 	}
 
+	for y, line := range grid {
+		runes := []rune(line)
+		if y == 0 || y == height-1 {
+			if slices.ContainsFunc(runes, func(r rune) bool { return r != '#' }) {
+				fmt.Printf("La bordure doit être un mur, ligne %d !\n", y+1)
+				return false
+			}
+			continue
+		}
+		if runes[0] != '#' || runes[width-1] != '#' {
+			fmt.Printf("La bordure doit être un mur, ligne %d !\n", y+1)
+			return false
+		}
+	}
+
 	for _, item := range grid {
 		for _, char := range item {
 			charStr := string(char)
