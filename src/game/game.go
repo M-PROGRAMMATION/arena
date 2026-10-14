@@ -24,6 +24,11 @@ type Point struct {
 	Y int
 }
 
+type Move struct {
+	Action string
+	To     Point
+}
+
 type enemyTracker struct {
 	hasPrev    bool
 	prevX      int
@@ -177,6 +182,18 @@ func decide(m mapPackage.Map, state []string, turn, playerNum int, receivedAt ti
 		predY = enemy.Y + (enemy.Y - tracker.prevY)
 	}
 
+	fromMe := distancesFrom(m, Point{X: player.X, Y: player.Y}, true)
+
+	me := Point{X: player.X, Y: player.Y}
+	foe := Point{X: enemy.X, Y: enemy.Y}
+
+	if canHit(m, foe, me) && (player.Ammo == 0 || player.Health <= 20) {
+		action := dodge(m, me, foe)
+		if action != "" {
+			return action
+		}
+	}
+
 	if canFire && player.Y == enemy.Y && player.X < enemy.X && enemy.X-player.X <= 5 && !objects.WallInRow(m, player.Y, player.X, enemy.X) &&
 		(!requirePrediction || (predY == player.Y && predX > player.X && predX-player.X <= 5)) {
 		return "TIRE E"
@@ -201,7 +218,21 @@ func decide(m mapPackage.Map, state []string, turn, playerNum int, receivedAt ti
 	}
 
 	target := Point{X: enemy.X, Y: enemy.Y}
-	fromMe := distancesFrom(m, Point{X: player.X, Y: player.Y}, true)
+	next := predictEnemy(foe, fromMe)
+	if player.Ammo != 0 && canHit(m, me, next) {
+		if next.Y == me.Y && next.X > me.X {
+			return "TIRE E"
+		}
+		if next.Y == me.Y && next.X < me.X {
+			return "TIRE O"
+		}
+		if next.X == me.X && next.Y < me.Y {
+			return "TIRE N"
+		}
+		if next.X == me.X && next.Y > me.Y {
+			return "TIRE S"
+		}
+	}
 
 	healPos, healDist := nearest(m, items, "SOIN", fromMe)
 	ammoPos, ammoDist := nearest(m, items, "MUNITION", fromMe)
@@ -327,4 +358,60 @@ func nearest(m mapPackage.Map, items []parsingrobot.Object, kind string, fromMe 
 		}
 	}
 	return best, bestDist
+}
+
+func canHit(m mapPackage.Map, shooter Point, target Point) bool {
+	if shooter.Y == target.Y {
+		left, right := shooter.X, target.X
+		if left > right {
+			left, right = right, left
+		}
+		return right-left <= 5 && !objects.WallInRow(m, shooter.Y, left, right)
+	}
+	if shooter.X == target.X {
+		up, down := shooter.Y, target.Y
+		if up > down {
+			up, down = down, up
+		}
+		return down-up <= 5 && !objects.WallInColumn(m, shooter.X, up, down)
+	}
+	return false
+}
+
+func dodge(m mapPackage.Map, me Point, enemy Point) string {
+	moves := []Move{
+		{"AVANCE N", Point{me.X, me.Y - 1}},
+		{"AVANCE S", Point{me.X, me.Y + 1}},
+		{"AVANCE E", Point{me.X + 1, me.Y}},
+		{"AVANCE O", Point{me.X - 1, me.Y}},
+	}
+	for _, mv := range moves {
+		if !inside(m, mv.To.X, mv.To.Y) || objects.IsWall(m, mv.To.X, mv.To.Y) {
+			continue
+		}
+		if !canHit(m, enemy, mv.To) {
+			return mv.Action
+		}
+	}
+	return ""
+}
+
+func predictEnemy(enemy Point, fromMe [][]int) Point {
+	here := fromMe[enemy.Y][enemy.X]
+	neighbors := []Point{
+		{enemy.X + 1, enemy.Y},
+		{enemy.X - 1, enemy.Y},
+		{enemy.X, enemy.Y + 1},
+		{enemy.X, enemy.Y - 1},
+	}
+	best := enemy
+	bestDist := here
+	for _, n := range neighbors {
+		d := fromMe[n.Y][n.X]
+		if d != -1 && d < bestDist {
+			best = n
+			bestDist = d
+		}
+	}
+	return best
 }
