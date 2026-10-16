@@ -5,6 +5,17 @@ import (
 	"strconv"
 )
 
+func ParseTour(fields []string) (int, error) {
+	if len(fields) < 2 {
+		return 0, fmt.Errorf("tour line: expected 2 fields, got %d", len(fields))
+	}
+	tour, err := strconv.Atoi(fields[1])
+	if err != nil {
+		return 0, fmt.Errorf("tour line: number %q is not an integer", fields[1])
+	}
+	return tour, nil
+}
+
 type Robot struct {
 	X      int
 	Y      int
