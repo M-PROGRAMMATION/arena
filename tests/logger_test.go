@@ -36,7 +36,7 @@ func TestLoggerWriteFile(t *testing.T) {
 	loggerPackage.Log("[2026-10-08 09:46]", "[1]", "[avance n]")
 	loggerPackage.Log("[2026-10-08 09:46]", "[2]", "[tire e]")
 
-	if err := loggerPackage.WriteFile(1); err != nil {
+	if err := loggerPackage.WriteFile(); err != nil {
 		t.Fatalf("LoggerWriteFile a renvoyé une erreur : %v", err)
 	}
 

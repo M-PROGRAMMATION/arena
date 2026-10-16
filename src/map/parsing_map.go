@@ -3,10 +3,10 @@ package _map
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
-	"unicode/utf8"
 )
 
 type Map struct {
@@ -19,160 +19,179 @@ type Map struct {
 }
 
 var validCharacters = []string{
-	"#", // = Mur Infranchissable (Arrête les tirs)
-	"~", // Eau Immobilisé (Immobilisé au Tour Suivant)
-	"^", // Piège (−15 PV)
-	"+", // Soin
-	"*", // Munitions
-	"!", // Bouclier
-	"$", // Trésor (Ramassés en marchant)
-	"1", // Joueur 1
-	"2", // Joueur 2
-	".", // Endroit ou le joueur peut bouger
+	"#", // Mur : infranchissable, arrête les tirs
+	".", // Sol
+	"~", // Eau : immobilise au tour suivant
+	"^", // Piège : -15 PV
+	"+", // Soin (v2)
+	"*", // Munitions (v2)
+	"!", // Bouclier (v2)
+	"$", // Trésor (v2)
+	"1", // Départ joueur 1
+	"2", // Départ joueur 2
 }
 
-func LoadMap(nameCard string) (Map, error) {
-	lignes, err := ParsingMap(nameCard)
+var headerKeys = []string{"NOM", "DIFFICULTE", "TOURS", "TAILLE"}
+
+func LoadMap(path string) (Map, error) {
+	file := filepath.Base(path)
+
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return Map{}, err
 	}
+
+	lines := strings.Split(strings.ReplaceAll(string(data), "\r\n", "\n"), "\n")
+	if len(lines) > 0 && lines[len(lines)-1] == "" {
+		lines = lines[:len(lines)-1]
+	}
+	if allBlank(lines) {
+		return Map{}, fileErr(file, "fichier vide")
+	}
+
 	var m Map
+	seen := map[string]int{}
 	i := 0
 
-	for ; i < len(lignes); i++ {
-		ligne := strings.TrimRight(lignes[i], "\r")
-		if strings.TrimSpace(ligne) == "" {
+	for ; i < len(lines); i++ {
+		lineNo := i + 1
+		trimmed := strings.TrimSpace(lines[i])
+		if trimmed == "" {
 			continue
 		}
-		if strings.HasPrefix(ligne, "#") {
+		if strings.HasPrefix(trimmed, "#") {
 			break
 		}
 
-		cle, valeur, ok := strings.Cut(ligne, " ")
-		if !ok {
-			return m, fmt.Errorf("ligne %d invalide : %q", i+1, ligne)
-		}
-		valeur = strings.TrimSpace(valeur)
+		key, value, _ := strings.Cut(trimmed, " ")
+		value = strings.TrimSpace(value)
 
-		var err error
-		switch cle {
+		if !slices.Contains(headerKeys, key) {
+			return Map{}, lineErr(file, lineNo, fmt.Sprintf("clé inconnue %q", key))
+		}
+		if _, dup := seen[key]; dup {
+			return Map{}, lineErr(file, lineNo, fmt.Sprintf("%s défini deux fois", key))
+		}
+
+		switch key {
 		case "NOM":
-			m.Name = valeur
+			if value == "" {
+				return Map{}, lineErr(file, lineNo, "NOM attend une valeur")
+			}
+			m.Name = value
 		case "DIFFICULTE":
-			m.Difficulty, err = strconv.Atoi(valeur)
+			d, err := strconv.Atoi(value)
+			if err != nil {
+				return Map{}, lineErr(file, lineNo, "DIFFICULTE attend un entier")
+			}
+			if d < 1 || d > 3 {
+				return Map{}, lineErr(file, lineNo, "DIFFICULTE attend un entier entre 1 et 3")
+			}
+			m.Difficulty = d
 		case "TOURS":
-			m.Rounds, err = strconv.Atoi(valeur)
+			r, err := strconv.Atoi(value)
+			if err != nil {
+				return Map{}, lineErr(file, lineNo, "TOURS attend un entier")
+			}
+			if r <= 0 {
+				return Map{}, lineErr(file, lineNo, "TOURS attend un entier positif")
+			}
+			m.Rounds = r
 		case "TAILLE":
-			_, err = fmt.Sscanf(valeur, "%d %d", &m.Width, &m.Height)
-		default:
-			err = fmt.Errorf("clé inconnue %q", cle)
+			fields := strings.Fields(value)
+			if len(fields) != 2 {
+				return Map{}, lineErr(file, lineNo, "TAILLE attend deux entiers")
+			}
+			w, errW := strconv.Atoi(fields[0])
+			h, errH := strconv.Atoi(fields[1])
+			if errW != nil || errH != nil {
+				return Map{}, lineErr(file, lineNo, "TAILLE attend deux entiers")
+			}
+			if w < 3 || h < 3 {
+				return Map{}, lineErr(file, lineNo, "TAILLE attend deux entiers d'au moins 3")
+			}
+			m.Width, m.Height = w, h
 		}
-		if err != nil {
-			return m, fmt.Errorf("ligne %d (%s) : %w", i+1, cle, err)
+		seen[key] = lineNo
+	}
+
+	for _, key := range headerKeys {
+		if _, ok := seen[key]; !ok {
+			return Map{}, fileErr(file, fmt.Sprintf("en-tête incomplet : %s manquant", key))
 		}
 	}
 
-	for ; i < len(lignes); i++ {
-		ligne := strings.TrimRight(lignes[i], "\r")
-		if ligne == "" {
-			continue
-		}
-		m.Grid = append(m.Grid, ligne)
+	grid := lines[i:]
+	if len(grid) != m.Height {
+		return Map{}, fileErr(file, fmt.Sprintf("%d lignes de grille, %d attendues", len(grid), m.Height))
 	}
 
-	if len(m.Grid) != m.Height {
-		return m, fmt.Errorf("hauteur attendue %d, trouvée %d", m.Height, len(m.Grid))
-	}
-	for y, row := range m.Grid {
-		if len([]rune(row)) != m.Width {
-			return m, fmt.Errorf("ligne %d de la grille : largeur %d au lieu de %d",
-				y+1, len([]rune(row)), m.Width)
+	p1Found, p2Found := false, false
+
+	for r, row := range grid {
+		lineNo := i + r + 1
+		runes := []rune(row)
+		if len(runes) != m.Width {
+			return Map{}, lineErr(file, lineNo, fmt.Sprintf("%d cases, %d attendues", len(runes), m.Width))
 		}
+
+		for c, ch := range runes {
+			col := c + 1
+			sym := string(ch)
+
+			if !slices.Contains(validCharacters, sym) {
+				return Map{}, colErr(file, lineNo, col, fmt.Sprintf("symbole inconnu %q", sym))
+			}
+
+			isBorder := r == 0 || r == m.Height-1 || c == 0 || c == m.Width-1
+			if isBorder && ch != '#' {
+				return Map{}, colErr(file, lineNo, col, "la bordure doit être un mur")
+			}
+
+			switch ch {
+			case '1':
+				if p1Found {
+					return Map{}, colErr(file, lineNo, col, "départ du joueur 1 déjà défini")
+				}
+				p1Found = true
+			case '2':
+				if p2Found {
+					return Map{}, colErr(file, lineNo, col, "départ du joueur 2 déjà défini")
+				}
+				p2Found = true
+			}
+		}
+
+		m.Grid = append(m.Grid, string(runes))
+	}
+
+	if !p1Found {
+		return Map{}, fileErr(file, "aucun départ pour le joueur 1")
+	}
+	if !p2Found {
+		return Map{}, fileErr(file, "aucun départ pour le joueur 2")
 	}
 
 	return m, nil
 }
 
-func ParsingMap(path string) ([]string, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("carte introuvable : %w", err)
+func allBlank(lines []string) bool {
+	for _, l := range lines {
+		if strings.TrimSpace(l) != "" {
+			return false
+		}
 	}
-	if len(strings.TrimSpace(string(data))) == 0 {
-		return nil, fmt.Errorf("carte vide : %s", path)
-	}
-	return strings.Split(string(data), "\n"), nil
+	return true
 }
 
-func MapIsValid(grid []string, width, height int) bool {
-	numberOneIsUsed := false
-	numberTwoIsUsed := false
+func fileErr(file, msg string) error {
+	return fmt.Errorf("%s : %s", file, msg)
+}
 
-	if width < 3 || height < 3 {
-		println("TAILLE invalide : minimum 3 !")
-		return false
-	}
+func lineErr(file string, line int, msg string) error {
+	return fmt.Errorf("%s ligne %d : %s", file, line, msg)
+}
 
-	if len(grid) != height {
-		fmt.Printf("La map fait %d lignes au lieu de %d !\n", len(grid), height)
-		return false
-	}
-
-	for y, line := range grid {
-		if n := utf8.RuneCountInString(line); n != width {
-			fmt.Printf("La ligne %d fait %d caractères au lieu de %d !\n", y+1, n, width)
-			return false
-		}
-	}
-
-	for y, line := range grid {
-		runes := []rune(line)
-		if y == 0 || y == height-1 {
-			if slices.ContainsFunc(runes, func(r rune) bool { return r != '#' }) {
-				fmt.Printf("La bordure doit être un mur, ligne %d !\n", y+1)
-				return false
-			}
-			continue
-		}
-		if runes[0] != '#' || runes[width-1] != '#' {
-			fmt.Printf("La bordure doit être un mur, ligne %d !\n", y+1)
-			return false
-		}
-	}
-
-	for _, item := range grid {
-		for _, char := range item {
-			charStr := string(char)
-
-			if !slices.Contains(validCharacters, charStr) {
-				println("La map n'est pas valide, symbole inconnu!")
-				return false
-			}
-
-			if charStr == "1" {
-				if numberOneIsUsed {
-					println("Impossible! Départ double!")
-					return false
-				}
-				numberOneIsUsed = true
-			}
-
-			if charStr == "2" {
-				if numberTwoIsUsed {
-					println("Impossible! Départ double!")
-					return false
-				}
-				numberTwoIsUsed = true
-			}
-		}
-	}
-
-	if !numberOneIsUsed {
-		println("La map n'est pas valide, car le joueur 1 n'est pas présent!")
-		return false
-	} else if !numberTwoIsUsed {
-		println("La map n'est pas valide, car le joueur 2 n'est pas présent!")
-	}
-
-	return true
+func colErr(file string, line, col int, msg string) error {
+	return fmt.Errorf("%s ligne %d colonne %d : %s", file, line, col, msg)
 }

@@ -53,7 +53,7 @@ func LogTurn(turn, player int, action string, me, enemy Position, receivedAt, se
 	)
 }
 
-func WriteFile(player int) error {
+func WriteFile() error {
 	if err := os.MkdirAll("logs", 0755); err != nil {
 		return fmt.Errorf("impossible de créer le dossier logs : %w", err)
 	}

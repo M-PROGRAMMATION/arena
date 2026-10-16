@@ -60,11 +60,12 @@ func StartGame() {
 
 	m, err := mapPackage.LoadMap(*mapPath)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Erreur de carte :", err)
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 
 	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	var state []string
 	var receivedAt time.Time
 	var tracker enemyTracker
@@ -72,11 +73,11 @@ func StartGame() {
 
 	for scanner.Scan() {
 		if receivedAt.IsZero() {
-			receivedAt = time.Now() // première ligne du tour = début du chrono
+			receivedAt = time.Now()
 		}
 
 		line := scanner.Text()
-		if line != "FIN" {
+		if fields := strings.Fields(line); len(fields) == 0 || fields[0] != "FIN" {
 			state = append(state, line)
 			continue
 		}
@@ -91,7 +92,7 @@ func StartGame() {
 		fmt.Fprintln(os.Stderr, "Erreur de lecture :", err)
 	}
 
-	if err := logger.WriteFile(*player); err != nil {
+	if err := logger.WriteFile(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
 }
@@ -100,7 +101,7 @@ func decide(m mapPackage.Map, state []string, turn, playerNum int, receivedAt ti
 	var enemy parsingrobot.Robot
 	var player parsingrobot.Robot
 	var items []parsingrobot.Object
-	var seenMe, seenEnemy bool
+	var seenMe, seenEnemy, seenTour bool
 
 	defer func() {
 		logger.LogTurn(turn, playerNum, action,
@@ -126,7 +127,23 @@ func decide(m mapPackage.Map, state []string, turn, playerNum int, receivedAt ti
 			continue
 		}
 
-		if fields[0] == "MOI" {
+		switch fields[0] {
+		case "TOUR":
+			if seenTour {
+				fmt.Fprintln(os.Stderr, "bloc invalide : ligne TOUR en double")
+				return "ATTENDS"
+			}
+			if _, err := parsingrobot.ParseTour(fields); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				return "ATTENDS"
+			}
+			seenTour = true
+
+		case "MOI":
+			if seenMe {
+				fmt.Fprintln(os.Stderr, "bloc invalide : ligne MOI en double")
+				return "ATTENDS"
+			}
 			robot, err := parsingrobot.ParseRobot(fields)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
@@ -134,9 +151,12 @@ func decide(m mapPackage.Map, state []string, turn, playerNum int, receivedAt ti
 			}
 			player = robot
 			seenMe = true
-		}
 
-		if fields[0] == "ENNEMI" {
+		case "ENNEMI":
+			if seenEnemy {
+				fmt.Fprintln(os.Stderr, "bloc invalide : ligne ENNEMI en double")
+				return "ATTENDS"
+			}
 			robot, err := parsingrobot.ParseRobot(fields)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
@@ -144,9 +164,8 @@ func decide(m mapPackage.Map, state []string, turn, playerNum int, receivedAt ti
 			}
 			enemy = robot
 			seenEnemy = true
-		}
 
-		if fields[0] == "OBJET" {
+		case "OBJET":
 			obj, err := parsingrobot.ParseObject(fields)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
@@ -154,6 +173,11 @@ func decide(m mapPackage.Map, state []string, turn, playerNum int, receivedAt ti
 			}
 			items = append(items, obj)
 		}
+	}
+
+	if !seenMe || !seenEnemy {
+		fmt.Fprintln(os.Stderr, "bloc invalide : position MOI ou ENNEMI manquante")
+		return "ATTENDS"
 	}
 
 	if !inside(m, enemy.X, enemy.Y) || !inside(m, player.X, player.Y) {

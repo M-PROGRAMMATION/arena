@@ -1,3 +1,11 @@
+01_fichier_vide.map : fichier vide
 02_symbole_inconnu.map ligne 8 colonne 5 : symbole inconnu "?"
+03_cle_inconnue.map ligne 5 : clé inconnue "VITESSE"
+04_cle_repetee.map ligne 4 : TOURS défini deux fois
 05_bordure_ouverte.map ligne 8 colonne 1 : la bordure doit être un mur
+06_cle_absente.map : en-tête incomplet : TAILLE manquant
 07_depart_double.map ligne 8 colonne 4 : départ du joueur 1 déjà défini
+08_taille_invalide.map ligne 4 : TAILLE attend deux entiers
+09_ligne_largeur.map ligne 7 : 10 cases, 11 attendues
+10_nombre_lignes.map : 6 lignes de grille, 7 attendues
+11_depart_absent.map : aucun départ pour le joueur 2
